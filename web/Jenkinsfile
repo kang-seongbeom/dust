@@ -40,17 +40,19 @@ spec:
         }
         stage('Build Docker Image with Kaniko') {
             steps {
-                container(name: "kaniko", shell: "/busybox/sh") {
-                    script {
-                        def dockerfileDir = './web/Dockerfile'
-                        sh """
-                        /kaniko/executor \\
-                            --compressed-caching=false \\
-                            --context . \\
-                            --dockerfile=${dockerfileDir} \\
-                            --destination ${IMAGE_NAME}:${IMAGE_TAG} \\
-                            --no-push
-                        """
+                dir('web'){
+                    container(name: "kaniko", shell: "/busybox/sh") {
+                        script {
+                            def dockerfileDir = './Dockerfile'
+                            sh """
+                            /kaniko/executor \\
+                                --compressed-caching=false \\
+                                --context . \\
+                                --dockerfile=${dockerfileDir} \\
+                                --destination ${IMAGE_NAME}:${IMAGE_TAG} \\
+                                --no-push
+                            """
+                        }
                     }
                 }
             }
