@@ -61,24 +61,24 @@ spec:
                 checkout scm
             }
         }
-        stage('Build Docker Image with Kaniko') {
-            steps {
-                dir('web'){
-                    container(name: "kaniko", shell: "/busybox/sh") {
-                        script {
-                            def dockerfileDir = './Dockerfile'
-                            sh """
-                            /kaniko/executor \
-                                --compressed-caching=false \
-                                --context . \
-                                --dockerfile=${dockerfileDir} \
-                                --destination ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}
-                            """
-                        }
-                    }
-                }
-            }
-        }
+        // stage('Build Docker Image with Kaniko') {
+        //     steps {
+        //         dir('web'){
+        //             container(name: "kaniko", shell: "/busybox/sh") {
+        //                 script {
+        //                     def dockerfileDir = './Dockerfile'
+        //                     sh """
+        //                     /kaniko/executor \
+        //                         --compressed-caching=false \
+        //                         --context . \
+        //                         --dockerfile=${dockerfileDir} \
+        //                         --destination ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}
+        //                     """
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
         stage('CD') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'fdc', usernameVariable: 'GITHUB_USER', passwordVariable: 'GITHUB_PASSWORD')]) {
