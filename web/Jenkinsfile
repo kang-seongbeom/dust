@@ -1,49 +1,27 @@
 pipeline {
-    options {
-        timeout(time: 30, unit: 'MINUTES')
-        timestamps()
-    }
-    
     agent {
-        kubernetes {
-            yaml """
+    kubernetes {
+      yaml """
 apiVersion: v1
 kind: Pod
 spec:
   containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    command:
-    - /busybox/sh
-    - -c
-    - sleep 999999
-    tty: true
-    resources:
-      limits:
-        memory: "2Gi"
-        cpu: "1000m"
-      requests:
-        memory: "1Gi"
-        cpu: "500m"
-    volumeMounts:
-    - name: workspace
-      mountPath: /workspace
-    workingDir: /workspace
-    # Kaniko는 특별한 권한이 필요할 수 있음
-    securityContext:
-      runAsUser: 0
-    # 컨테이너가 종료되지 않도록 설정
-    lifecycle:
-      preStop:
-        exec:
-          command: ["/bin/sh", "-c", "sleep 10"]
-      
-  volumes:
-  - name: workspace
-    emptyDir: {}
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:v1.23.2-debug
+      tty: true
+      command:
+        - /busybox/sleep
+        - infinity
+      resources:
+        requests:
+          memory: "13.5Gi"
+        limits:
+          memory: "13.5Gi"
+
 """
-        }
+      defaultContainer "kaniko"
     }
+  }
     
     environment {
         // 이미지 이름 설정
@@ -65,129 +43,21 @@ spec:
                 checkout scm
             }
         }
-        
-        stage('Build Docker Image with Kaniko (Multi-stage)') {
+        stage('Checkout & Setup') {
             steps {
-                container('kaniko') {
+                container(name: "kaniko", shell: "/busybox/sh") {
                     script {
-                        sh """
-                        # Kaniko 환경 확인
-                        echo "Kaniko executor location:"
-                        ls -la /kaniko/executor
-                        
-                        # 빌드 컨텍스트 확인
-                        echo "Build context contents:"
-                        ls -la /workspace/
-                        echo "Dockerfile contents:"
-                        head -20 /workspace/Dockerfile
-                        
-                        # Dockerfile 멀티스테이지 빌드로 Maven 빌드 + 이미지 생성
-                        echo "Starting multi-stage Docker build with Kaniko..."
-                        echo "This will:"
-                        echo "1. Build Spring Boot app with Maven (builder stage)"
-                        echo "2. Create runtime image with Amazon Corretto (runtime stage)"
-                        
-                        # Kaniko 실행 및 결과 확인
-                        if /kaniko/executor \\
-                            --context=/workspace \\
-                            --dockerfile=/workspace/Dockerfile \\
-                            --destination=${IMAGE_NAME}:${IMAGE_TAG} \\
-                            --destination=${IMAGE_NAME}:latest \\
-                            --no-push \\
-                            --cache=true \\
-                            --cache-ttl=${KANIKO_CACHE_TTL} \\
-                            --single-snapshot \\
-                            --verbosity=${KANIKO_VERBOSITY} \\
-                            --cleanup; then
-                            echo "✅ Kaniko build completed successfully"
-                        else
-                            echo "❌ Kaniko build failed"
-                            exit 1
-                        fi
+                        def dockerfileDir = '.'
+                        sh """#1/busybox/sh
+                        /kaniko/executor \
+                            --compressed-caching=false \
+                            --context ${dockerfileDir} \
+                            --destination ${IMAGE_NAME}:${IMAGE_TAG}
                         """
                     }
                 }
             }
         }
         
-        stage('Image Verification') {
-            steps {
-                container('kaniko') {
-                    script {
-                        sh """
-                        # 빌드된 이미지 확인
-                        echo "✅ Multi-stage Docker build completed successfully!"
-                        echo "📦 Docker images created:"
-                        echo "   - ${IMAGE_NAME}:${IMAGE_TAG}"
-                        echo "   - ${IMAGE_NAME}:latest"
-                        
-                        # 빌드 정보 출력
-                        echo "🏗️ Build process:"
-                        echo "   - Stage 1: Maven build (maven:3.9.9-amazoncorretto-21)"
-                        echo "   - Stage 2: Runtime image (amazoncorretto:21-alpine)"
-                        echo "   - Final image: Spring Boot WAR with non-root user"
-                        
-                        # 이미지 메타데이터 확인
-                        echo "📋 Build metadata:"
-                        echo "   - Build completed at: \$(date)"
-                        echo "   - Git commit: ${env.GIT_COMMIT}"
-                        echo "   - Build number: ${env.BUILD_NUMBER}"
-                        echo "   - Image tag: ${IMAGE_TAG}"
-                        """
-                    }
-                }
-            }
-        }
-    }
-    
-    post {
-        always {
-            script {
-                def imageName = 'fdc-dust-web-app'
-                def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT[0..7]}"
-                def buildDuration = currentBuild.durationString
-                
-                echo "=========================================="
-                echo "Build Summary:"
-                echo "Status: ${currentBuild.result ?: 'SUCCESS'}"
-                echo "Duration: ${buildDuration}"
-                echo "Docker Image: ${imageName}:${imageTag}"
-                echo "Git Commit: ${env.GIT_COMMIT}"
-                echo "=========================================="
-            }
-        }
-        success {
-            script {
-                def imageName = 'fdc-dust-web-app'
-                def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT[0..7]}"
-                
-                echo "🎉 Multi-stage Docker build successful!"
-                echo "📦 Docker images created:"
-                echo "   - ${imageName}:${imageTag}"
-                echo "   - ${imageName}:latest"
-                echo "🏗️ Build process:"
-                echo "   - Maven build + Docker image creation in single step"
-                echo "   - Multi-stage build with Amazon Corretto runtime"
-                echo "💡 Images are built locally (not pushed to registry)"
-            }
-        }
-        failure {
-            script {
-                echo "❌ Build failed!"
-                echo "🔍 Check the logs above for details"
-                echo "💡 Consider retrying the build"
-            }
-        }
-        unstable {
-            script {
-                echo "⚠️ Build unstable - some tests may have failed"
-            }
-        }
-        cleanup {
-            script {
-                echo "🧹 Cleaning up workspace..."
-                cleanWs()
-            }
-        }
     }
 }
