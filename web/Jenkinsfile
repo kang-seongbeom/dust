@@ -67,6 +67,28 @@ spec:
                 }
             }
         }
+        stage('CD') {
+            steps {
+                sshagent(['fdc']) {
+                    script {
+                        // Git 설정
+                        sh """
+                        git config --global user.name "Jenkins CI"
+                        git config --global user.email "jenkins@example.com"
+
+                        git switch cd || git switch -b cd
+                        
+                        sed -i "s|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:.*|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}|g" cd/deployment.yaml                        
+
+                        git add .
+                        git commit -m "Update deployment image to ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} [Build #${env.BUILD_NUMBER}]"
+                        git push origin cd
+                        """                        
+                        
+                    }
+                }
+            }
+        }
     }
     
     post {
