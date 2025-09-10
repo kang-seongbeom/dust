@@ -72,30 +72,60 @@ spec:
                 withCredentials([usernamePassword(credentialsId: 'fdc', usernameVariable: 'GITHUB_USER', passwordVariable: 'GITHUB_PASSWORD')]) {
                     script {
                         // Git 설정 및 인증
-                        sh """
-
-                        echo "GITHUB_USER: ${GITHUB_USER}"
-                        echo "GITHUB_PASSWORD: ${GITHUB_PASSWORD}"
-
+                        sh '''
+                        echo "Setting up Git authentication..."
+                        
                         git config --global user.name "Jenkins CI"
                         git config --global user.email "jenkins@example.com"
                         
-                        # Username/Password로 GitHub 인증
-                        git remote set-url origin https://${GITHUB_USER}:${GITHUB_PASSWORD}@github.com/kang-seongbeom/dust.git
+                        # Username/Password로 GitHub 인증 (보안을 위해 환경변수 사용)
+                        git remote set-url origin https://$GITHUB_USER:$GITHUB_PASSWORD@github.com/kang-seongbeom/dust.git
 
                         git switch cd || git switch -b cd
                         
-                        sed -i "s|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:.*|image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}|g" cd/deployment.yaml                        
+                        sed -i "s|image: ''' + DOCKER_HUB_USER + '/' + IMAGE_NAME + ''':.*|image: ''' + DOCKER_HUB_USER + '/' + IMAGE_NAME + ''':''' + IMAGE_TAG + '''|g" cd/deployment.yaml                        
 
                         git add .
-                        git commit -m "Update deployment image to ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} [Build #${env.BUILD_NUMBER}]"
+                        git commit -m "Update deployment image to ''' + DOCKER_HUB_USER + '/' + IMAGE_NAME + ''':''' + IMAGE_TAG + ''' [Build #''' + env.BUILD_NUMBER + ''']"
                         git push origin cd
-                        """                            
+                        '''                            
+                        
+                        echo "✅ Successfully updated deployment.yaml and pushed to cd branch"
+                        echo "📦 Updated image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                        echo "🔗 Repository: https://github.com/kang-seongbeom/dust/tree/cd"
                     }
                 }
             }
         }
     }
     
-
+    post {
+        always {
+            script {
+                echo "=========================================="
+                echo "Build Summary:"
+                echo "Build Number: ${env.BUILD_NUMBER}"
+                echo "Status: ${currentBuild.result ?: 'SUCCESS'}"
+                echo "Docker Image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                echo "Git Commit: ${env.GIT_COMMIT}"
+                echo "Branch: ${env.BRANCH_NAME}"
+                echo "=========================================="
+            }
+        }
+        success {
+            script {
+                echo "🎉 Build successful!"
+                echo "📦 Docker image created: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                echo "🔗 View at: https://hub.docker.com/r/${DOCKER_HUB_USER}/${IMAGE_NAME}"
+                echo "📝 Deployment updated in GitHub: https://github.com/kang-seongbeom/dust/tree/cd"
+            }
+        }
+        failure {
+            script {
+                echo "❌ Build failed!"
+                echo "Build Number: ${env.BUILD_NUMBER}"
+                echo "Check the logs above for error details."
+            }
+        }
+    }
 }
