@@ -17,6 +17,16 @@ spec:
         memory: "13.5Gi"
       limits:
         memory: "13.5Gi"
+    volumeMounts:
+      - name: registry-credentials
+        mountPath: /kaniko/.docker
+  volumes:
+    - name: registry-credentials
+      secret:
+        secretName: docker-hub-secret
+        items: 
+        - key: .dockerconfigjson
+          path: config.json
 """
             defaultContainer "kaniko"
         }
@@ -24,6 +34,7 @@ spec:
     
     environment {
         // 이미지 이름 설정
+        IMAGE_REGISTRY = 'qkfka9045'
         IMAGE_NAME = 'fdc-dust-web-app'
         IMAGE_TAG = "0.0.1"
     }
@@ -45,12 +56,11 @@ spec:
                         script {
                             def dockerfileDir = './Dockerfile'
                             sh """
-                            /kaniko/executor \\
-                                --compressed-caching=false \\
-                                --context . \\
-                                --dockerfile=${dockerfileDir} \\
-                                --destination ${IMAGE_NAME}:${IMAGE_TAG} \\
-                                --no-push
+                            /kaniko/executor \
+                                --compressed-caching=false \
+                                --context . \
+                                --dockerfile=${dockerfileDir} \
+                                --destination ${IMAGE_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
                             """
                         }
                     }
