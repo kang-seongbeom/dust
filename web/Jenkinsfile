@@ -36,7 +36,7 @@ spec:
         // 이미지 이름 설정
         DOCKER_HUB_USER = 'qkfka9045'
         IMAGE_NAME = 'fdc-dust-web-app'
-        IMAGE_TAG = "0.0.1"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
     
     stages {
@@ -65,6 +65,34 @@ spec:
                         }
                     }
                 }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                echo "=========================================="
+                echo "Build Summary:"
+                echo "Build Number: ${env.BUILD_NUMBER}"
+                echo "Status: ${currentBuild.result ?: 'SUCCESS'}"
+                echo "Docker Image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                echo "Git Commit: ${env.GIT_COMMIT}"
+                echo "Branch: ${env.BRANCH_NAME}"
+                echo "=========================================="
+            }
+        }
+        success {
+            script {
+                echo "🎉 Build successful!"
+                echo "📦 Docker image created: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
+                echo "🔗 View at: https://hub.docker.com/r/${DOCKER_HUB_USER}/${IMAGE_NAME}"
+            }
+        }
+        failure {
+            script {
+                echo "❌ Build failed!"
+                echo "Build Number: ${env.BUILD_NUMBER}"
             }
         }
     }
