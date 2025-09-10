@@ -6,10 +6,10 @@ apiVersion: v1
 kind: Pod
 spec:
   containers:
-  - name: maven
-    image: maven:3.9.9-amazoncorretto-21
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
     command:
-    - /bin/sh
+    - /busybox/sh
     - -c
     - sleep 999999
     resources:
@@ -20,26 +20,6 @@ spec:
         memory: "1Gi"
         cpu: "500m"
     volumeMounts:
-    - name: maven-cache
-      mountPath: /root/.m2
-    - name: workspace
-      mountPath: /workspace
-    workingDir: /workspace
-    
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:v1.23.2-debug
-    command:
-    - /busybox/sh
-    - -c
-    - sleep 999999
-    resources:
-      limits:
-        memory: "1Gi"
-        cpu: "500m"
-      requests:
-        memory: "512Mi"
-        cpu: "250m"
-    volumeMounts:
     - name: workspace
       mountPath: /workspace
     workingDir: /workspace
@@ -48,8 +28,6 @@ spec:
       runAsUser: 0
       
   volumes:
-  - name: maven-cache
-    emptyDir: {}
   - name: workspace
     emptyDir: {}
 """
@@ -59,10 +37,7 @@ spec:
     environment {
         // 이미지 이름 설정
         IMAGE_NAME = 'fdc-dust-web-app'
-        IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT[0..7]}"
-        
-        // Maven 설정 (리소스 최적화)
-        MAVEN_OPTS = '-Xmx1536m -XX:+UseG1GC'
+        IMAGE_TAG = "0.0.1"
         
         // Kaniko 설정
         KANIKO_CACHE_TTL = '24h'
@@ -73,8 +48,6 @@ spec:
         stage('Checkout & Setup') {
             steps {
                 script {
-                    // 블로그에서 언급된 jnlp 컨테이너 경로 문제 해결
-                    // workspace 경로를 명시적으로 설정
                     workingDirectory = sh(script: "pwd", returnStdout: true).trim()
                     echo "Working directory: ${workingDirectory}"
                 }
@@ -82,32 +55,7 @@ spec:
             }
         }
         
-        stage('Maven Build & Test') {
-            steps {
-                container('maven') {
-                    script {
-                        // Maven 빌드 최적화
-                        sh '''
-                            echo "Starting Maven build with optimized settings..."
-                            echo "Java version:"
-                            java -version
-                            echo "Maven version:"
-                            mvn -version
-                            
-                            # 의존성 다운로드 (캐시 활용)
-                            mvn dependency:go-offline -B
-                            
-                            # 컴파일 및 테스트
-                            mvn clean compile test -B
-                            
-                            echo "Maven build completed successfully"
-                        '''
-                    }
-                }
-            }
-        }
-        
-        stage('Build Docker Image with Kaniko') {
+        stage('Build Docker Image with Kaniko (Multi-stage)') {
             steps {
                 container('kaniko') {
                     script {
@@ -119,8 +67,15 @@ spec:
                         # 빌드 컨텍스트 확인
                         echo "Build context contents:"
                         ls -la /workspace/
+                        echo "Dockerfile contents:"
+                        head -20 /workspace/Dockerfile
                         
-                        # Kaniko로 이미지 빌드 (블로그 모범 사례 적용)
+                        # Dockerfile 멀티스테이지 빌드로 Maven 빌드 + 이미지 생성
+                        echo "Starting multi-stage Docker build with Kaniko..."
+                        echo "This will:"
+                        echo "1. Build Spring Boot app with Maven (builder stage)"
+                        echo "2. Create runtime image with Amazon Corretto (runtime stage)"
+                        
                         /kaniko/executor \\
                             --context=/workspace \\
                             --dockerfile=/workspace/Dockerfile \\
@@ -143,15 +98,24 @@ spec:
                 container('kaniko') {
                     script {
                         sh """
-                        # 빌드된 이미지 확인 (로컬에서)
-                        echo "Docker images built successfully:"
-                        echo "- ${IMAGE_NAME}:${IMAGE_TAG}"
-                        echo "- ${IMAGE_NAME}:latest"
+                        # 빌드된 이미지 확인
+                        echo "✅ Multi-stage Docker build completed successfully!"
+                        echo "📦 Docker images created:"
+                        echo "   - ${IMAGE_NAME}:${IMAGE_TAG}"
+                        echo "   - ${IMAGE_NAME}:latest"
                         
-                        # 이미지 메타데이터 확인 (가능한 경우)
-                        echo "Build completed at: \$(date)"
-                        echo "Git commit: ${env.GIT_COMMIT}"
-                        echo "Build number: ${env.BUILD_NUMBER}"
+                        # 빌드 정보 출력
+                        echo "🏗️ Build process:"
+                        echo "   - Stage 1: Maven build (maven:3.9.9-amazoncorretto-21)"
+                        echo "   - Stage 2: Runtime image (amazoncorretto:21-alpine)"
+                        echo "   - Final image: Spring Boot WAR with non-root user"
+                        
+                        # 이미지 메타데이터 확인
+                        echo "📋 Build metadata:"
+                        echo "   - Build completed at: \$(date)"
+                        echo "   - Git commit: ${env.GIT_COMMIT}"
+                        echo "   - Build number: ${env.BUILD_NUMBER}"
+                        echo "   - Image tag: ${IMAGE_TAG}"
                         """
                     }
                 }
@@ -180,12 +144,14 @@ spec:
                 def imageName = 'fdc-dust-web-app'
                 def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT[0..7]}"
                 
-                echo "🎉 Build successful!"
+                echo "🎉 Multi-stage Docker build successful!"
                 echo "📦 Docker images created:"
                 echo "   - ${imageName}:${imageTag}"
                 echo "   - ${imageName}:latest"
+                echo "🏗️ Build process:"
+                echo "   - Maven build + Docker image creation in single step"
+                echo "   - Multi-stage build with Amazon Corretto runtime"
                 echo "💡 Images are built locally (not pushed to registry)"
-                echo "💰 Spot instance optimization applied"
             }
         }
         failure {
