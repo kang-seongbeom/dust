@@ -9,7 +9,7 @@ spec:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     command:
-    - simple
+    - sleep 999999
     tty: true
     resources:
       limits:
@@ -21,7 +21,7 @@ spec:
   - name: maven
     image: maven:3.9.9-amazoncorretto-21
     command:
-    - sleep
+    - sleep 999999
     volumeMounts:
     - name: maven-cache
       mountPath: /root/.m2
