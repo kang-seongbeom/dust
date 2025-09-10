@@ -69,12 +69,15 @@ spec:
         }
         stage('CD') {
             steps {
-                
-                script {
-                        // Git 설정
-                    sh """
+                withCredentials([usernamePassword(credentialsId: 'fdc', usernameVariable: 'GITHUB_USER', passwordVariable: 'GITHUB_PASSWORD')]) {
+                    script {
+                        // Git 설정 및 인증
+                        sh """
                         git config --global user.name "Jenkins CI"
                         git config --global user.email "jenkins@example.com"
+                        
+                        # Username/Password로 GitHub 인증
+                        git remote set-url origin https://${GITHUB_USER}:${GITHUB_PASSWORD}@github.com/kang-seongbeom/dust.git
 
                         git switch cd || git switch -b cd
                         
@@ -83,7 +86,8 @@ spec:
                         git add .
                         git commit -m "Update deployment image to ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG} [Build #${env.BUILD_NUMBER}]"
                         git push origin cd
-                    """                            
+                        """                            
+                    }
                 }
             }
         }
