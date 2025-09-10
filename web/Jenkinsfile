@@ -1,36 +1,31 @@
 pipeline {
     agent {
-    kubernetes {
-      yaml """
+        kubernetes {
+            yaml """
 apiVersion: v1
 kind: Pod
 spec:
   containers:
-    - name: kaniko
-      image: gcr.io/kaniko-project/executor:v1.23.2-debug
-      tty: true
-      command:
-        - /busybox/sleep
-        - infinity
-      resources:
-        requests:
-          memory: "13.5Gi"
-        limits:
-          memory: "13.5Gi"
-
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:v1.23.2-debug
+    tty: true
+    command:
+    - /busybox/sleep
+    - infinity
+    resources:
+      requests:
+        memory: "13.5Gi"
+      limits:
+        memory: "13.5Gi"
 """
-      defaultContainer "kaniko"
+            defaultContainer "kaniko"
+        }
     }
-  }
     
     environment {
         // 이미지 이름 설정
         IMAGE_NAME = 'fdc-dust-web-app'
         IMAGE_TAG = "0.0.1"
-        
-        // Kaniko 설정
-        KANIKO_CACHE_TTL = '24h'
-        KANIKO_VERBOSITY = 'info'
     }
     
     stages {
@@ -43,21 +38,21 @@ spec:
                 checkout scm
             }
         }
-        stage('Checkout & Setup') {
+        stage('Build Docker Image with Kaniko') {
             steps {
                 container(name: "kaniko", shell: "/busybox/sh") {
                     script {
                         def dockerfileDir = '.'
-                        sh """#1/busybox/sh
-                        /kaniko/executor \
-                            --compressed-caching=false \
-                            --context ${dockerfileDir} \
-                            --destination ${IMAGE_NAME}:${IMAGE_TAG}
+                        sh """
+                        /kaniko/executor \\
+                            --compressed-caching=false \\
+                            --context ${dockerfileDir} \\
+                            --destination ${IMAGE_NAME}:${IMAGE_TAG} \\
+                            --no-push
                         """
                     }
                 }
             }
         }
-        
     }
 }
