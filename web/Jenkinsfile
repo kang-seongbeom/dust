@@ -34,7 +34,7 @@ spec:
     
     environment {
         // 이미지 이름 설정
-        IMAGE_REGISTRY = 'qkfka9045/sso-demo'
+        DOCKER_HUB_USER = 'qkfka9045'
         IMAGE_NAME = 'fdc-dust-web-app'
         IMAGE_TAG = "0.0.1"
     }
@@ -60,7 +60,7 @@ spec:
                                 --compressed-caching=false \
                                 --context . \
                                 --dockerfile=${dockerfileDir} \
-                                --destination ${IMAGE_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+                                --destination ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}
                             """
                         }
                     }
