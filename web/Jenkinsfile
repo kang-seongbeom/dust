@@ -9,16 +9,19 @@ spec:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     command:
-    - /bin/sh
-    - -c
-    - sleep 999999
+    - simple
     tty: true
+    resources:
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+      requests:
+        memory: "512Mi"
+        cpu: "250m"
   - name: maven
     image: maven:3.9.9-amazoncorretto-21
     command:
-    - /bin/sh
-    - -c
-    - sleep 999999
+    - sleep
     volumeMounts:
     - name: maven-cache
       mountPath: /root/.m2
@@ -62,6 +65,11 @@ spec:
                 container('kaniko') {
                     script {
                         sh """
+                        # Kaniko 실행 전 환경 확인
+                        ls -la /kaniko/
+                        which /kaniko/executor
+                        
+                        # Kaniko로 이미지 빌드
                         /kaniko/executor \
                             --context=/workspace \
                             --dockerfile=/workspace/Dockerfile \
@@ -70,7 +78,8 @@ spec:
                             --no-push \
                             --cache=true \
                             --cache-ttl=24h \
-                            --single-snapshot
+                            --single-snapshot \
+                            --verbosity=debug
                         """
                     }
                 }
