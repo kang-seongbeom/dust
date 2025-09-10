@@ -32,7 +32,7 @@ spec:
         stage('Checkout & Setup') {
             steps {
                 script {
-                    workingDirectory = sh(script: "pwd", returnStdout: true).trim()
+                    def workingDirectory = sh(script: "pwd", returnStdout: true).trim()
                     echo "Working directory: ${workingDirectory}"
                 }
                 checkout scm
@@ -42,11 +42,12 @@ spec:
             steps {
                 container(name: "kaniko", shell: "/busybox/sh") {
                     script {
-                        def dockerfileDir = '.'
+                        def dockerfileDir = './web/Dockerfile'
                         sh """
                         /kaniko/executor \\
                             --compressed-caching=false \\
-                            --context ${dockerfileDir} \\
+                            --context . \\
+                            --dockerfile=${dockerfileDir} \\
                             --destination ${IMAGE_NAME}:${IMAGE_TAG} \\
                             --no-push
                         """
