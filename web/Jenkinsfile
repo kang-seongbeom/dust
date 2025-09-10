@@ -1,0 +1,103 @@
+pipeline {
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    command:
+    - /busybox/cat
+    tty: true
+  - name: maven
+    image: maven:3.9.9-amazoncorretto-21
+    command:
+    - /bin/sh
+    - -c
+    - sleep 999999
+    volumeMounts:
+    - name: maven-cache
+      mountPath: /root/.m2
+  volumes:
+  - name: maven-cache
+    emptyDir: {}
+"""
+        }
+    }
+    
+    environment {
+        // 이미지 이름 설정
+        IMAGE_NAME = 'dust-web-app'
+        IMAGE_TAG = "0.0.1"
+        
+        // Maven 설정
+        MAVEN_OPTS = '-Xmx1024m'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Maven Build') {
+            steps {
+                container('maven') {
+                    sh '''
+                        echo "Starting Maven build..."
+                        mvn clean compile test
+                        echo "Maven build completed successfully"
+                    '''
+                }
+            }
+        }
+        
+        stage('Build Docker Image with Kaniko') {
+            steps {
+                container('kaniko') {
+                    script {
+                        sh """
+                        /kaniko/executor \
+                            --context=/workspace \
+                            --dockerfile=/workspace/Dockerfile \
+                            --destination=${IMAGE_NAME}:${IMAGE_TAG} \
+                            --destination=${IMAGE_NAME}:latest \
+                            --no-push \
+                            --cache=true \
+                            --cache-ttl=24h \
+                            --single-snapshot
+                        """
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                echo "Build completed with status: ${currentBuild.result ?: 'SUCCESS'}"
+                echo "Docker image built: ${IMAGE_NAME}:${IMAGE_TAG}"
+            }
+        }
+        success {
+            script {
+                echo "✅ Build successful! Docker image created:"
+                echo "   - ${IMAGE_NAME}:${IMAGE_TAG}"
+                echo "   - ${IMAGE_NAME}:latest"
+                echo "   (Images are built locally, not pushed to registry)"
+            }
+        }
+        failure {
+            script {
+                echo "❌ Build failed!"
+            }
+        }
+        cleanup {
+            cleanWs()
+        }
+    }
+}
