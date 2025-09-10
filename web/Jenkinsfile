@@ -29,7 +29,7 @@ spec:
     
     environment {
         // 이미지 이름 설정
-        IMAGE_NAME = 'dust-web-app'
+        IMAGE_NAME = 'fdc-dust-web-app'
         IMAGE_TAG = "0.0.1"
         
         // Maven 설정
