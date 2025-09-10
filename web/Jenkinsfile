@@ -1,4 +1,9 @@
 pipeline {
+    options {
+        timeout(time: 30, unit: 'MINUTES')
+        timestamps()
+    }
+    
     agent {
         kubernetes {
             yaml """
@@ -12,6 +17,7 @@ spec:
     - /busybox/sh
     - -c
     - sleep 999999
+    tty: true
     resources:
       limits:
         memory: "2Gi"
@@ -26,6 +32,11 @@ spec:
     # Kaniko는 특별한 권한이 필요할 수 있음
     securityContext:
       runAsUser: 0
+    # 컨테이너가 종료되지 않도록 설정
+    lifecycle:
+      preStop:
+        exec:
+          command: ["/bin/sh", "-c", "sleep 10"]
       
   volumes:
   - name: workspace
@@ -76,7 +87,8 @@ spec:
                         echo "1. Build Spring Boot app with Maven (builder stage)"
                         echo "2. Create runtime image with Amazon Corretto (runtime stage)"
                         
-                        /kaniko/executor \\
+                        # Kaniko 실행 및 결과 확인
+                        if /kaniko/executor \\
                             --context=/workspace \\
                             --dockerfile=/workspace/Dockerfile \\
                             --destination=${IMAGE_NAME}:${IMAGE_TAG} \\
@@ -86,7 +98,12 @@ spec:
                             --cache-ttl=${KANIKO_CACHE_TTL} \\
                             --single-snapshot \\
                             --verbosity=${KANIKO_VERBOSITY} \\
-                            --cleanup
+                            --cleanup; then
+                            echo "✅ Kaniko build completed successfully"
+                        else
+                            echo "❌ Kaniko build failed"
+                            exit 1
+                        fi
                         """
                     }
                 }
