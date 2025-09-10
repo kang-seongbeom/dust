@@ -69,19 +69,19 @@ spec:
         }
         stage('CD') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'fdc', usernameVariable: 'username', passwordVariable: 'password')]) {
+                withCredentials([usernamePassword(credentialsId: 'fdc', usernameVariable: 'GITHUB_USER', passwordVariable: 'GITHUB_PASSWORD')]) {
                     script {
                         // Git 설정 및 인증
                         sh """
 
-                        echo "GITHUB_USER: ${username}"
-                        echo "GITHUB_PASSWORD: ${password}"
+                        echo "GITHUB_USER: ${GITHUB_USER}"
+                        echo "GITHUB_PASSWORD: ${GITHUB_PASSWORD}"
 
                         git config --global user.name "Jenkins CI"
                         git config --global user.email "jenkins@example.com"
                         
                         # Username/Password로 GitHub 인증
-                        git remote set-url origin https://${username}:${password}@github.com/kang-seongbeom/dust.git
+                        git remote set-url origin https://${GITHUB_USER}:${GITHUB_PASSWORD}@github.com/kang-seongbeom/dust.git
 
                         git switch cd || git switch -b cd
                         
@@ -97,31 +97,5 @@ spec:
         }
     }
     
-    post {
-        always {
-            script {
-                echo "=========================================="
-                echo "Build Summary:"
-                echo "Build Number: ${env.BUILD_NUMBER}"
-                echo "Status: ${currentBuild.result ?: 'SUCCESS'}"
-                echo "Docker Image: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
-                echo "Git Commit: ${env.GIT_COMMIT}"
-                echo "Branch: ${env.BRANCH_NAME}"
-                echo "=========================================="
-            }
-        }
-        success {
-            script {
-                echo "🎉 Build successful!"
-                echo "📦 Docker image created: ${DOCKER_HUB_USER}/${IMAGE_NAME}:${IMAGE_TAG}"
-                echo "🔗 View at: https://hub.docker.com/r/${DOCKER_HUB_USER}/${IMAGE_NAME}"
-            }
-        }
-        failure {
-            script {
-                echo "❌ Build failed!"
-                echo "Build Number: ${env.BUILD_NUMBER}"
-            }
-        }
-    }
+
 }
