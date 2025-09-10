@@ -9,7 +9,9 @@ spec:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
     command:
-    - /busybox/cat
+    - /bin/sh
+    - -c
+    - sleep 999999
     tty: true
   - name: maven
     image: maven:3.9.9-amazoncorretto-21
@@ -79,15 +81,19 @@ spec:
     post {
         always {
             script {
+                def imageName = 'fdc-dust-web-app'
+                def imageTag = '0.0.1'
                 echo "Build completed with status: ${currentBuild.result ?: 'SUCCESS'}"
-                echo "Docker image built: ${IMAGE_NAME}:${IMAGE_TAG}"
+                echo "Docker image built: ${imageName}:${imageTag}"
             }
         }
         success {
             script {
+                def imageName = 'fdc-dust-web-app'
+                def imageTag = '0.0.1'
                 echo "✅ Build successful! Docker image created:"
-                echo "   - ${IMAGE_NAME}:${IMAGE_TAG}"
-                echo "   - ${IMAGE_NAME}:latest"
+                echo "   - ${imageName}:${imageTag}"
+                echo "   - ${imageName}:latest"
                 echo "   (Images are built locally, not pushed to registry)"
             }
         }
