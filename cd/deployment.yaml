@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: fdc-dust-web-app
-        image: qkfka9045/fdc-dust-web-app:35
+        image: qkfka9045/fdc-dust-web-app:36
         ports:
         - containerPort: 8080
           name: http
