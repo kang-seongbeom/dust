@@ -14,7 +14,7 @@ public class HomeController {
 
     @GetMapping("/")
     public String home(Model model) {
-        model.addAttribute("title", "Dust Web Application 2");
+        model.addAttribute("title", "Dust Web Application 3");
         model.addAttribute("message", "Welcome to Spring Boot with JSP!");
         model.addAttribute("currentTime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
         return "home";
